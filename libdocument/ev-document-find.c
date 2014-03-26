@@ -45,7 +45,7 @@ ev_document_find_find_text (EvDocumentFind *document_find,
 			    gboolean        case_sensitive)
 {
 	EvDocumentFindInterface *iface = EV_DOCUMENT_FIND_GET_IFACE (document_find);
-	
+
 	return iface->find_text (document_find, page, text, case_sensitive);
 }
 
@@ -65,6 +65,24 @@ ev_document_find_find_text_with_options (EvDocumentFind *document_find,
 					 EvFindOptions   options)
 {
 	EvDocumentFindInterface *iface = EV_DOCUMENT_FIND_GET_IFACE (document_find);
+
+	printf("FIND TEXT (options): %s\n", text);
+	GError **error = NULL;
+	glong ucs4_len;
+	gunichar *ucs4;
+	ucs4 = g_utf8_to_ucs4 (text, -1, NULL, &ucs4_len, error);
+
+	if(g_unichar_validate(text[0]))
+		printf("char %c validated from input\n", text[0]);
+
+	if(g_utf8_validate(text, -1, NULL))
+		printf("utf8 validated: %s\n", text);
+
+	if(g_unichar_validate(ucs4[0]))
+		printf("char %c validated!\n", ucs4[0]);
+
+	printf("---- UTF8 text received (string): %s\n", text);
+	printf("---- UCS4 text converted (string): %s\n", (char*) ucs4);
 
 	if (iface->find_text_with_options)
 		return iface->find_text_with_options (document_find, page, text, options);
