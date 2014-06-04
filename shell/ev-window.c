@@ -5556,7 +5556,7 @@ ev_window_dispose (GObject *object)
 		g_object_unref (priv->monitor);
 		priv->monitor = NULL;
 	}
-	
+
 	if (priv->title) {
 		ev_window_title_free (priv->title);
 		priv->title = NULL;
@@ -5628,7 +5628,7 @@ ev_window_dispose (GObject *object)
 	if (priv->find_job) {
 		ev_window_clear_find_job (window);
 	}
-	
+
 	if (priv->local_uri) {
 		ev_window_clear_local_uri (window);
 		priv->local_uri = NULL;
@@ -5639,7 +5639,7 @@ ev_window_dispose (GObject *object)
 		g_object_unref (priv->progress_cancellable);
 		priv->progress_cancellable = NULL;
 	}
-	
+
 	ev_window_close_dialogs (window);
 
 	if (priv->link) {
@@ -5682,7 +5682,7 @@ ev_window_dispose (GObject *object)
 		g_free (priv->search_string);
 		priv->search_string = NULL;
 	}
-	
+
 	if (priv->dest) {
 		g_object_unref (priv->dest);
 		priv->dest = NULL;
