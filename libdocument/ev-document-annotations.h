@@ -61,8 +61,11 @@ typedef enum {
         /* Text Markup Annotations */
         EV_ANNOTATIONS_SAVE_TEXT_MARKUP_TYPE = 1 << 9,
 
+	/* Text Markup Annotations */
+	EV_ANNOTATIONS_SAVE_QUADS         = 1 << 10,
+
 	/* Save all */
-	EV_ANNOTATIONS_SAVE_ALL              = (1 << 10) - 1
+	EV_ANNOTATIONS_SAVE_ALL              = (1 << 11) - 1
 } EvAnnotationsSaveMask;
 
 typedef struct _EvDocumentAnnotations          EvDocumentAnnotations;
@@ -81,6 +84,7 @@ struct _EvDocumentAnnotationsInterface
 						 EvRectangle           *rect);
 	void           (* save_annotation)      (EvDocumentAnnotations *document_annots,
 						 EvAnnotation          *annot,
+						 EvRectangle           *rect,
 						 EvAnnotationsSaveMask  mask);
 	void	       (* remove_annotation)    (EvDocumentAnnotations *document_annots,
 						 EvAnnotation          *annot);
@@ -98,6 +102,7 @@ void           ev_document_annotations_remove_annotation    (EvDocumentAnnotatio
 
 void           ev_document_annotations_save_annotation      (EvDocumentAnnotations *document_annots,
 							     EvAnnotation          *annot,
+							     EvRectangle           *rect,
 							     EvAnnotationsSaveMask  mask);
 gboolean       ev_document_annotations_can_add_annotation    (EvDocumentAnnotations *document_annots);
 gboolean       ev_document_annotations_can_remove_annotation (EvDocumentAnnotations *document_annots);

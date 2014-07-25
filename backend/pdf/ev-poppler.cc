@@ -3327,6 +3327,7 @@ copy_poppler_annot (PopplerAnnot* src_annot,
 static void
 pdf_document_annotations_save_annotation (EvDocumentAnnotations *document_annotations,
 					  EvAnnotation          *annot,
+					  EvRectangle           *area,
 					  EvAnnotationsSaveMask  mask)
 {
 	PopplerAnnot *poppler_annot;
@@ -3446,6 +3447,54 @@ pdf_document_annotations_save_annotation (EvDocumentAnnotations *document_annota
 						"poppler-annot",
 						new_annot,
 						(GDestroyNotify) g_object_unref);
+		}
+
+		if (mask & EV_ANNOTATIONS_SAVE_QUADS) {
+			GArray           *quads;
+			PopplerRectangle *bbox;
+			EvPage           *page;
+			PopplerPage      *poppler_page;
+			EvMappingList    *annot_mapping;
+			GList            *annot_list;
+			gdouble           height;
+
+			page = ev_annotation_get_page (annot);
+			poppler_page = POPPLER_PAGE (page->backend_page);
+			poppler_page_get_size (poppler_page, NULL, &height);
+
+			bbox = g_slice_new (PopplerRectangle);
+			quads = poppler_page_get_quadrilaterals_for_area (poppler_page, (PopplerRectangle *) area, bbox);
+
+			if (quads->len > 0) {
+				poppler_annot_text_markup_set_quadrilaterals (text_markup, quads);
+				poppler_annot_set_rectangle (poppler_annot, bbox);
+
+				/* Update rectangle in annotation mapping */
+				annot_mapping = (EvMappingList *) g_hash_table_lookup (PDF_DOCUMENT (document_annotations)->annots,
+										       GINT_TO_POINTER (page->index));
+				annot_list = ev_mapping_list_get_list (annot_mapping);
+
+				for (; annot_list; annot_list = g_list_next (annot_list)) {
+					EvMapping *map = (EvMapping *) annot_list->data;
+					EvAnnotation *map_annot = (EvAnnotation *) map->data;
+
+					if (ev_annotation_get_name (map_annot) == ev_annotation_get_name (annot)) {
+						PopplerRectangle *poppler_rect = g_slice_new (PopplerRectangle);
+
+						poppler_annot_get_rectangle (poppler_annot, poppler_rect);
+
+						map->area.x1 = poppler_rect->x1;
+						map->area.y1 = height - poppler_rect->y2;
+						map->area.x2 = poppler_rect->x2;
+						map->area.y2 = height - poppler_rect->y1;
+
+						g_slice_free (PopplerRectangle, poppler_rect);
+						break;
+					}
+				}
+			}
+			g_array_unref (quads);
+			g_slice_free (PopplerRectangle, bbox);
 		}
 	}
 

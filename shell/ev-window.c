@@ -6347,7 +6347,7 @@ ev_window_popup_cmd_annot_properties (GSimpleAction *action,
 	if (mask != EV_ANNOTATIONS_SAVE_NONE) {
 		ev_document_doc_mutex_lock ();
 		ev_document_annotations_save_annotation (EV_DOCUMENT_ANNOTATIONS (window->priv->document),
-							 window->priv->annot,
+							 window->priv->annot, NULL,
 							 mask);
 		ev_document_doc_mutex_unlock ();
 
