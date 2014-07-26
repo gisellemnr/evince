@@ -110,6 +110,7 @@ typedef struct {
 
 #define ANNOT_POPUP_WINDOW_DEFAULT_WIDTH  200
 #define ANNOT_POPUP_WINDOW_DEFAULT_HEIGHT 150
+#define ANNOTATION_ICON_SIZE 24
 
 /*** Scrolling ***/
 static void       view_update_range_and_current_page         (EvView             *view);
@@ -3215,8 +3216,8 @@ ev_view_create_annotation (EvView          *view,
 	case EV_ANNOTATION_TYPE_TEXT: {
 		doc_rect.x1 = begin.x;
  		doc_rect.y1 = begin.y;
- 		doc_rect.x2 = doc_rect.x1 + 24;
- 		doc_rect.y2 = doc_rect.y1 + 24;
+ 		doc_rect.x2 = doc_rect.x1 + ANNOTATION_ICON_SIZE;
+ 		doc_rect.y2 = doc_rect.y1 + ANNOTATION_ICON_SIZE;
  		annot = ev_annotation_text_new (page);
  		break;
 	}
