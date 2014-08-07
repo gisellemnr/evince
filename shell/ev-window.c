@@ -5745,9 +5745,10 @@ sidebar_annots_annot_activated_cb (EvSidebarAnnotations *sidebar_annots,
 static void
 sidebar_annots_begin_annot_add (EvSidebarAnnotations *sidebar_annots,
 				EvAnnotationType      annot_type,
+				guint		      annot_sub_type,
 				EvWindow             *window)
 {
-	ev_view_begin_add_annotation (EV_VIEW (window->priv->view), annot_type);
+	ev_view_begin_add_annotation (EV_VIEW (window->priv->view), annot_type, annot_sub_type);
 }
 
 static void

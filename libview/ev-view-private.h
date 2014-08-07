@@ -125,6 +125,7 @@ typedef struct {
 	GdkPoint           stop;
 	AnnotationModeType mode;
 	EvAnnotationType   type;
+	guint	           sub_type;
 	EvAnnotation      *annot;
 	gint		   page;
 } ActiveAnnotInfo;

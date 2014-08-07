@@ -49,7 +49,8 @@ struct _EvSidebarAnnotationsClass {
 	void    (* annot_activated)     (EvSidebarAnnotations *sidebar_annots,
 					 EvMapping            *mapping);
 	void    (* begin_annot_add)     (EvSidebarAnnotations *sidebar_annots,
-					 EvAnnotationType      annot_type);
+					 EvAnnotationType      annot_type,
+					 guint		       annot_sub_type);
 	void    (* annot_add_cancelled) (EvSidebarAnnotations *sidebar_annots);
 };
 

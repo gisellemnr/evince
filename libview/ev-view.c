@@ -3215,7 +3215,8 @@ ev_view_handle_annotation (EvView       *view,
 
 static void
 ev_view_create_annotation (EvView          *view,
-			   EvAnnotationType annot_type)
+			   EvAnnotationType annot_type,
+			   guint	    annot_sub_type)
 {
 	EvAnnotation   *annot;
 	EvPoint         begin;
@@ -3252,7 +3253,14 @@ ev_view_create_annotation (EvView          *view,
 		doc_rect.y1 = begin.y;
 		doc_rect.x2 = end.x;
 		doc_rect.y2 = end.y;
-		/* TODO */
+		switch ((EvAnnotationTextMarkupType) annot_sub_type) {
+			case EV_ANNOTATION_TEXT_MARKUP_HIGHLIGHT: {
+				annot = ev_annotation_text_markup_highlight_new (page);
+				break;
+			}
+			default:
+				g_assert_not_reached ();
+		}
 		break;
 	}
 	case EV_ANNOTATION_TYPE_ATTACHMENT:
@@ -3326,7 +3334,8 @@ ev_view_focus_annotation (EvView    *view,
 
 void
 ev_view_begin_add_annotation (EvView          *view,
-			      EvAnnotationType annot_type)
+			      EvAnnotationType annot_type,
+			      guint	       annot_sub_type)
 {
 	if (annot_type == EV_ANNOTATION_TYPE_UNKNOWN)
 		return;
@@ -3336,6 +3345,7 @@ ev_view_begin_add_annotation (EvView          *view,
 
 	view->annot_info.mode = MODE_ADD;
 	view->annot_info.type = annot_type;
+	view->annot_info.sub_type = annot_sub_type;
 	ev_view_set_cursor (view, EV_VIEW_CURSOR_ADD);
 }
 
@@ -4921,7 +4931,7 @@ ev_view_button_press_event (GtkWidget      *widget,
 				get_selection_page_range (view, &view->annot_info.start,
 							  &view->annot_info.start, 
 							  &view->annot_info.page, &last);
-				ev_view_create_annotation (view, view->annot_info.type);
+				ev_view_create_annotation (view, view->annot_info.type, view->annot_info.sub_type);
 
 				switch (view->annot_info.type) {
 					case EV_ANNOTATION_TYPE_TEXT:

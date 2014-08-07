@@ -29,6 +29,49 @@
 #include "ev-job-scheduler.h"
 #include "ev-stock-icons.h"
 
+/* VOID:ENUM,UINT */
+G_GNUC_INTERNAL void ev_shell_marshal_VOID__ENUM_UINT (GClosure     *closure,
+                                                       GValue       *return_value,
+                                                       guint         n_param_values,
+                                                       const GValue *param_values,
+                                                       gpointer      invocation_hint,
+                                                       gpointer      marshal_data);
+void
+ev_shell_marshal_VOID__ENUM_UINT (GClosure     *closure,
+                                  GValue       *return_value G_GNUC_UNUSED,
+                                  guint         n_param_values,
+                                  const GValue *param_values,
+                                  gpointer      invocation_hint G_GNUC_UNUSED,
+                                  gpointer      marshal_data)
+{
+  typedef void (*GMarshalFunc_VOID__ENUM_UINT) (gpointer     data1,
+                                                gint         arg_1,
+                                                gint         arg_2,
+                                                gpointer     data2);
+  register GMarshalFunc_VOID__ENUM_UINT callback;
+  register GCClosure *cc = (GCClosure*) closure;
+  register gpointer data1, data2;
+
+  g_return_if_fail (n_param_values == 3);
+
+  if (G_CCLOSURE_SWAP_DATA (closure))
+    {
+      data1 = closure->data;
+      data2 = g_value_peek_pointer (param_values + 0);
+    }
+  else
+    {
+      data1 = g_value_peek_pointer (param_values + 0);
+      data2 = closure->data;
+    }
+  callback = (GMarshalFunc_VOID__ENUM_UINT) (marshal_data ? marshal_data : cc->callback);
+
+  callback (data1,
+            (param_values + 1)->data[0].v_long,
+            (param_values + 2)->data[0].v_uint,
+            data2);
+}
+
 enum {
 	PROP_0,
 	PROP_WIDGET
@@ -55,6 +98,7 @@ struct _EvSidebarAnnotationsPrivate {
 	GtkWidget   *tree_view;
 	GtkWidget   *palette;
 	GtkToolItem *annot_text_item;
+	GtkToolItem *annot_highlight_item;
 
 	EvJob       *job;
 	guint        selection_changed_id;
@@ -164,22 +208,30 @@ ev_sidebar_annotations_add_annots_list (EvSidebarAnnotations *ev_annots)
 }
 
 static void
-ev_sidebar_annotations_text_annot_button_toggled (GtkToggleToolButton  *toolbutton,
-						  EvSidebarAnnotations *sidebar_annots)
+ev_sidebar_annotations_annot_button_toggled (GtkToggleToolButton  *toolbutton,
+					     EvSidebarAnnotations *sidebar_annots)
 {
 	EvAnnotationType annot_type;
+	guint		 annot_sub_type = 0;
 
 	if (!gtk_toggle_tool_button_get_active (toolbutton)) {
 		g_signal_emit (sidebar_annots, signals[ANNOT_ADD_CANCELLED], 0, NULL);
 		return;
 	}
 
-	if (GTK_TOOL_ITEM (toolbutton) == sidebar_annots->priv->annot_text_item)
+	if (GTK_TOOL_ITEM (toolbutton) == sidebar_annots->priv->annot_text_item) {
+		gtk_toggle_tool_button_set_active (GTK_TOGGLE_TOOL_BUTTON (sidebar_annots->priv->annot_highlight_item), FALSE);
 		annot_type = EV_ANNOTATION_TYPE_TEXT;
+	}
+	else if (GTK_TOOL_ITEM (toolbutton) == sidebar_annots->priv->annot_highlight_item) {
+		gtk_toggle_tool_button_set_active (GTK_TOGGLE_TOOL_BUTTON (sidebar_annots->priv->annot_text_item), FALSE);
+		annot_type = EV_ANNOTATION_TYPE_TEXT_MARKUP;
+		annot_sub_type = (guint) EV_ANNOTATION_TEXT_MARKUP_HIGHLIGHT;
+	}
 	else
 		annot_type = EV_ANNOTATION_TYPE_UNKNOWN;
 
-	g_signal_emit (sidebar_annots, signals[BEGIN_ANNOT_ADD], 0, annot_type);
+	g_signal_emit (sidebar_annots, signals[BEGIN_ANNOT_ADD], 0, annot_type, annot_sub_type);
 }
 
 static void
@@ -208,7 +260,19 @@ ev_sidebar_annotations_add_annots_palette (EvSidebarAnnotations *ev_annots)
 	gtk_widget_set_tooltip_text (GTK_WIDGET (item), _("Add text annotation"));
 	ev_annots->priv->annot_text_item = item;
 	g_signal_connect (item, "toggled",
-			  G_CALLBACK (ev_sidebar_annotations_text_annot_button_toggled),
+			  G_CALLBACK (ev_sidebar_annotations_annot_button_toggled),
+			  ev_annots);
+	gtk_tool_item_group_insert (GTK_TOOL_ITEM_GROUP (group), item, -1);
+	gtk_widget_show (GTK_WIDGET (item));
+
+	/* FIXME: use a better icon than INDEX */
+	item = gtk_toggle_tool_button_new ();
+	gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (item), GTK_STOCK_INDEX);
+	gtk_tool_button_set_label (GTK_TOOL_BUTTON (item), _("Highlight"));
+	gtk_widget_set_tooltip_text (GTK_WIDGET (item), _("Add highlight annotation"));
+	ev_annots->priv->annot_highlight_item = item;
+	g_signal_connect (item, "toggled",
+			  G_CALLBACK (ev_sidebar_annotations_annot_button_toggled),
 			  ev_annots);
 	gtk_tool_item_group_insert (GTK_TOOL_ITEM_GROUP (group), item, -1);
 	gtk_widget_show (GTK_WIDGET (item));
@@ -285,9 +349,9 @@ ev_sidebar_annotations_class_init (EvSidebarAnnotationsClass *klass)
 			      G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
 			      G_STRUCT_OFFSET (EvSidebarAnnotationsClass, begin_annot_add),
 			      NULL, NULL,
-			      g_cclosure_marshal_VOID__ENUM,
-			      G_TYPE_NONE, 1,
-			      EV_TYPE_ANNOTATION_TYPE);
+			      ev_shell_marshal_VOID__ENUM_UINT,
+			      G_TYPE_NONE, 2,
+			      EV_TYPE_ANNOTATION_TYPE, G_TYPE_UINT);
 	signals[ANNOT_ADD_CANCELLED] =
 		g_signal_new ("annot-add-cancelled",
 			      G_TYPE_FROM_CLASS (g_object_class),
@@ -313,14 +377,31 @@ ev_sidebar_annotations_annot_added (EvSidebarAnnotations *sidebar_annots,
 {
 	GtkToggleToolButton *toolbutton;
 
-	if (EV_IS_ANNOTATION_TEXT (annot)) {
-		toolbutton = GTK_TOGGLE_TOOL_BUTTON (sidebar_annots->priv->annot_text_item);
+	if (EV_IS_ANNOTATION (annot)) {
+		switch (ev_annotation_get_annotation_type (annot)) {
+			case EV_ANNOTATION_TYPE_TEXT:
+				toolbutton = GTK_TOGGLE_TOOL_BUTTON (sidebar_annots->priv->annot_text_item);
+				break;
+			case EV_ANNOTATION_TYPE_TEXT_MARKUP:
+				switch (ev_annotation_text_markup_get_markup_type (EV_ANNOTATION_TEXT_MARKUP (annot))) {
+					case EV_ANNOTATION_TEXT_MARKUP_HIGHLIGHT: {
+						toolbutton = GTK_TOGGLE_TOOL_BUTTON (sidebar_annots->priv->annot_highlight_item);
+						break;
+					}
+					default:
+						g_assert_not_reached ();
+				}
+				break;
+			default:
+				g_assert_not_reached ();
+		}
+
 		g_signal_handlers_block_by_func (toolbutton,
-						 ev_sidebar_annotations_text_annot_button_toggled,
+						 ev_sidebar_annotations_annot_button_toggled,
 						 sidebar_annots);
 		gtk_toggle_tool_button_set_active (toolbutton, FALSE);
 		g_signal_handlers_unblock_by_func (toolbutton,
-						   ev_sidebar_annotations_text_annot_button_toggled,
+						   ev_sidebar_annotations_annot_button_toggled,
 						   sidebar_annots);
 	}
 
