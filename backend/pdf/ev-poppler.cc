@@ -3198,6 +3198,22 @@ pdf_document_annotations_add_annotation (EvDocumentAnnotations *document_annotat
 						     get_poppler_annot_text_icon (icon));
 			}
 			break;
+		case EV_ANNOTATION_TYPE_TEXT_MARKUP: {
+			GArray *quads;
+
+			quads = poppler_page_get_quadrilaterals_for_area (poppler_page, &poppler_rect, NULL);
+
+			switch (ev_annotation_text_markup_get_markup_type (EV_ANNOTATION_TEXT_MARKUP (annot))) {
+				case EV_ANNOTATION_TEXT_MARKUP_HIGHLIGHT: {
+					poppler_annot = poppler_annot_text_markup_new_highlight (pdf_document->document, &poppler_rect, quads);
+				}
+					break;
+				default:
+					g_assert_not_reached ();
+			}
+			g_array_unref (quads);
+		}
+			break;
 		default:
 			g_assert_not_reached ();
 	}
