@@ -3324,6 +3324,31 @@ copy_poppler_annot (PopplerAnnot* src_annot,
 	}
 }
 
+static gboolean
+pdf_document_annotations_render_annotation (EvDocumentAnnotations *document_annotations,
+					    EvAnnotation	  *annot,
+					    cairo_t		  *cr)
+{
+	PopplerAnnot *poppler_annot;
+	GArray *quads;
+	EvPage *page;
+	PopplerPage *poppler_page;
+	gint i;
+
+	if (!EV_IS_ANNOTATION_TEXT_MARKUP (annot))
+		return FALSE;
+
+	poppler_annot = POPPLER_ANNOT (g_object_get_data (G_OBJECT (annot), "poppler-annot"));
+	if (!poppler_annot)
+		return FALSE;
+        page = ev_annotation_get_page (annot);
+                poppler_page = POPPLER_PAGE (page->backend_page);
+
+	poppler_page_render_annot (poppler_page, poppler_annot, cr);
+
+	return TRUE;
+}
+
 static void
 pdf_document_annotations_save_annotation (EvDocumentAnnotations *document_annotations,
 					  EvAnnotation          *annot,
@@ -3593,6 +3618,8 @@ pdf_document_document_annotations_iface_init (EvDocumentAnnotationsInterface *if
 	iface->document_is_modified = pdf_document_annotations_document_is_modified;
 	iface->add_annotation = pdf_document_annotations_add_annotation;
 	iface->save_annotation = pdf_document_annotations_save_annotation;
+        iface->render_annotation = pdf_document_annotations_render_annotation;
+
 	iface->remove_annotation = pdf_document_annotations_remove_annotation;
 	iface->is_xy_in_annotation = pdf_document_annotations_is_xy_in_annotation;
 }
