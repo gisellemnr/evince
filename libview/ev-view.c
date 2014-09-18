@@ -3221,6 +3221,14 @@ ev_view_create_annotation (EvView          *view,
  		annot = ev_annotation_text_new (page);
  		break;
 	}
+	case EV_ANNOTATION_TYPE_TEXT_MARKUP: {
+		doc_rect.x1 = begin.x;
+		doc_rect.y1 = begin.y;
+		doc_rect.x2 = end.x;
+		doc_rect.y2 = end.y;
+		/* TODO */
+		break;
+	}
 	case EV_ANNOTATION_TYPE_ATTACHMENT:
 		/* TODO */
 		g_object_unref (page);
@@ -3261,8 +3269,9 @@ ev_view_create_annotation (EvView          *view,
 		parent = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (view)));
 		window = ev_view_create_annotation_window (view, annot, parent);
 
-		/* Show the annot window the first time */
-		ev_view_annotation_show_popup_window (view, window);
+		/* Show the annot window the first time for text annotations */
+		if (EV_IS_ANNOTATION_TEXT (annot))
+			ev_view_annotation_show_popup_window (view, window);
 	}
 
 	_ev_view_transform_doc_rect_to_view_rect (view, view->current_page, &doc_rect, &view_rect);
@@ -3271,6 +3280,8 @@ ev_view_create_annotation (EvView          *view,
 	region = cairo_region_create_rectangle (&view_rect);
 	ev_view_reload_page (view, view->current_page, region);
 	cairo_region_destroy (region);
+
+	view->annot_info.annot = annot;
 
 	g_signal_emit (view, signals[SIGNAL_ANNOT_ADDED], 0, annot);
 }
@@ -4877,14 +4888,19 @@ ev_view_button_press_event (GtkWidget      *widget,
 				view->image_dnd_info.start.x = event->x + view->scroll_x;
 				view->image_dnd_info.start.y = event->y + view->scroll_y;
 			} else if (view->annot_info.mode == MODE_ADD) {
+				view->annot_info.start.x = event->x + view->scroll_x;
+				view->annot_info.start.y = event->y + view->scroll_y;
+				view->annot_info.stop = view->annot_info.start;
+				ev_view_create_annotation (view, view->annot_info.type);
+
 				switch (view->annot_info.type) {
 					case EV_ANNOTATION_TYPE_TEXT:
 					case EV_ANNOTATION_TYPE_ATTACHMENT: {
-						view->annot_info.start.x = event->x + view->scroll_x;
-						view->annot_info.start.y = event->y + view->scroll_y;
-						view->annot_info.stop = view->annot_info.start;
-						ev_view_create_annotation (view, view->annot_info.type);
 						view->annot_info.mode = MODE_NORMAL;
+						break;
+					}
+					case EV_ANNOTATION_TYPE_TEXT_MARKUP: {
+						view->annot_info.mode = MODE_DRAW;
 						break;
 					}
 					default:
@@ -5209,25 +5225,58 @@ ev_view_motion_notify_event (GtkWidget      *widget,
 		if (view->rotation != 0)
 			return FALSE;
 
-		/* Schedule timeout to scroll during selection and additionally 
-		 * scroll once to allow arbitrary speed. */
-		if (!view->selection_scroll_id)
-		    view->selection_scroll_id = g_timeout_add (SCROLL_TIME,
-							       (GSourceFunc)selection_scroll_timeout_cb,
-							       view);
-		else 
-		    selection_scroll_timeout_cb (view);
-
 		view->motion.x = x + view->scroll_x;
 		view->motion.y = y + view->scroll_y;
 
-		/* Queue an idle to handle the motion.  We do this because	
-		 * handling any selection events in the motion could be slower	
-		 * than new motion events reach us.  We always put it in the	
-		 * idle to make sure we catch up and don't visibly lag the	
-		 * mouse. */
-		if (!view->selection_update_id)
-			view->selection_update_id = g_idle_add ((GSourceFunc)selection_update_idle_cb, view);
+		if (view->annot_info.mode == MODE_DRAW) {
+			EvRectangle           rect;
+			EvPoint               begin;
+			EvPoint               end;
+			GdkRectangle          page_area;
+			GtkBorder             border;
+			EvAnnotationsSaveMask mask = EV_ANNOTATIONS_SAVE_NONE;
+
+			view->annot_info.stop.x = event->x + view->scroll_x;
+			view->annot_info.stop.y = event->y + view->scroll_y;
+
+			ev_view_get_page_extents (view, view->current_page, &page_area, &border);
+			_ev_view_transform_view_point_to_doc_point (view, &view->annot_info.start, &page_area, &border,
+								    &begin.x, &begin.y);
+			_ev_view_transform_view_point_to_doc_point (view, &view->annot_info.stop, &page_area, &border,
+								    &end.x, &end.y);
+			rect.x1 = begin.x;
+			rect.y1 = begin.y;
+			rect.x2 = end.x;
+			rect.y2 = end.y;
+
+			if (EV_IS_ANNOTATION_TEXT_MARKUP (view->annot_info.annot))
+				mask |= EV_ANNOTATIONS_SAVE_QUADS;
+
+			ev_document_doc_mutex_lock ();
+			ev_document_annotations_save_annotation (EV_DOCUMENT_ANNOTATIONS (view->document),
+								 view->annot_info.annot, &rect, mask);
+			ev_document_doc_mutex_unlock ();
+
+			/* FIXME: reload only annotation area */
+			ev_view_reload_page (view, view->current_page, NULL);
+		} else {
+			/* Schedule timeout to scroll during selection and additionally 
+			 * scroll once to allow arbitrary speed. */
+			if (!view->selection_scroll_id)
+			    view->selection_scroll_id = g_timeout_add (SCROLL_TIME,
+								       (GSourceFunc)selection_scroll_timeout_cb,
+								       view);
+			else
+			    selection_scroll_timeout_cb (view);
+
+			/* Queue an idle to handle the motion.  We do this because	
+			 * handling any selection events in the motion could be slower	
+			 * than new motion events reach us.  We always put it in the	
+			 * idle to make sure we catch up and don't visibly lag the	
+			 * mouse. */
+			if (!view->selection_update_id)
+				view->selection_update_id = g_idle_add ((GSourceFunc)selection_update_idle_cb, view);
+		}
 
 		return TRUE;
 	case 2:
